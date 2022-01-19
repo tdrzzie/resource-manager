@@ -1,0 +1,31 @@
+MPI INSTALLATION(Management_node)
+		wget http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz
+		yum install gcc gcc-c++ kernel-devel -y
+		tar xvf mpich-3.1.4.tar.gz
+		mkdir mpich2
+		cd mpich-3.1.4
+		./configure --prefix=/home/mpich2 --disable-fortran
+		make
+		make install
+		ls
+		cd ../
+		ls
+		cd mpich2/
+		ls
+		cd bin/
+		ls
+		cd ../
+		vi ~/.bashrc
+	Add the following 2-lines
+			export PATH=/home/mpich2/bin:$PATH
+			export LD_LIBRARY_PATH=“home/mpich2/lib:$LD_LIBRARY_PATH”
+		source ~/.bashrc
+
+MPI INSTALLATION(Client_node)
+		vi ~/.bashrc
+	Add the following 2-lines
+			export PATH=/mnt/home/mpich2/bin:$PATH
+			export LD_LIBRARY_PATH=“mnt/home/mpich2/lib:$LD_LIBRARY_PATH”
+		source ~/.bashrc
+All_nodes
+		mpirun

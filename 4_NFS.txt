@@ -1,0 +1,38 @@
+CONFIGURE NFS SERVER(Management_node)
+	check network adapters
+		nmcli d
+	Install NFS Server
+		yum install -y nfs-utils nfs-utils-lib
+	After installing the packages, enable and start NFS services.
+		systemctl start nfs-server rpcbind
+		systemctl enable nfs-server rpcbind
+		mkdir home
+		vi /etc/exports
+			Add the following line:
+			/home *(rw,insecure,no_root_squash,sync)
+		exportfs –a
+		systemctl restart nfs-server
+	
+Configure NFS client(Client_nodes)
+	Install NFS packages on NFS client to mount a remote NFS share.
+	After installing the packages, enable and start NFS services.
+		showmount -e 192.168.0.1
+		rpcinfo -p 192.168.0.1
+	Output:
+			Export list for 192.168.0.1: 
+			/home *
+ 		mkdir /mnt/home
+		mount 192.168.0.1:/home /mnt/home
+		mount | grep nfs
+		df –hT
+		touch /mnt/home/test.txt
+		ls -l /home/
+Mount nfsshare on system boot
+		vi /etc/fstab
+	Add the following entry.
+		192.168.0.1:/home /mnt/home nfs nosuid,rw,sync,hard,intr 0 0
+
+		mount -a
+
+
+

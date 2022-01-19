@@ -1,0 +1,257 @@
+#All_nodes
+      hostnamectl set-hostname compute1
+      hostname
+      systemctl stop firewalld
+      systemctl status firewalld
+      systemctl disable firewalld
+            vi /etc/sysconfig/selinux
+                  "disable SELINUX"
+      cd /etc/sysconfig/network-scripts
+            vi ifcfg-ens33
+                  "change from dhcp to static"
+                  IPADDR=192.168.0.1/2/3
+                  NETMASK=255.255.255.0
+      service network restart
+      ip a s
+
+#RSH(All_nodes)
+      yum -y install rsh rsh-server
+      systemctl restart rsh.socket
+      systemctl restart rlogin.socket 
+      systemctl restart rexec.socket
+      systemctl enable rsh.socket 
+      systemctl enable rlogin.socket
+      systemctl enable rexec.socket
+            vi /etc/hosts
+                  "Add ip address of all nodes and hostnames"
+            vi /etc/rhosts.equiv
+            vi /root/.rhosts
+                  "Add hostnames of nodes to be connected only"
+            vi /etc/securetty
+                  "Add rsh, rexec and rlogin"
+
+#SSH(All_nodes)
+      rpm –qa | grep openssh
+      sudo yum –y install openssh-server openssh-clients openssh-libs
+      sudo systemctl start sshd
+      sudo systemctl status sshd
+      sudo systemctl enable sshd
+      ssh-keygen
+      ssh-copy-id -i ~/.ssh/id_rsa.pub root@computex
+      ssh root@compute1
+
+#NFS SERVER(Management_node)
+      nmcli d
+      yum install -y nfs-utils nfs-utils-lib
+      systemctl start nfs-server rpcbind
+      systemctl enable nfs-server rpcbind
+      mkdir home
+            vi /etc/exports
+                  Add the following line:
+                  /home *(rw,insecure,no_root_squash,sync)
+      exportfs –a
+      systemctl restart nfs-server
+      
+#NFS client(Client_nodes)
+      "Install NFS"
+      "enable and start NFS"
+      showmount -e 192.168.0.1
+      rpcinfo -p 192.168.0.1
+      mkdir /mnt/home
+      mount 192.168.0.1:/home /mnt/home
+      mount | grep nfs
+      df –hT
+      touch /mnt/home/test.txt
+      ls -l /home/
+            vi /etc/fstab
+                  Add the following entry.
+                  192.168.0.1:/home /mnt/home nfs nosuid,rw,sync,hard,intr 0 0
+      mount -a
+      
+#NIS SERVICE(Management_node)
+      yum -y install ypserv rpcbind cache cach nfs make ypbind portmap xinetd
+      rpm –qa ypserv
+            vi /etc/sysconfig/network
+                  NETWORKING=yes
+                  NETWORKING_IPV6=no
+                  HOSTNAME=management
+                  NISDOMAIN=zchpc
+            vi /var/yp/securenets
+                  255.0.0.0             127.0.0.0 
+                  255.255.255.0     192.168.0.0
+      systemctl start rpcbind ypserv ypxfrd yppasswdd
+      systemctl enable rpcbind ypserv ypxfrd yppasswdd
+      rpcinfo -u management ypserv
+      /usr/lib64/yp/ypinit –m
+            "next host to add:" management
+            "next host to add:" compute1
+            "next host to add:" compute2
+            "Ctrl + D key"
+                  The current list of NIS servers looks like this:
+                  management 
+                  compute1
+                  compute2
+            "y key and Enter"
+      cd /var/yp
+      make
+
+#NIS(Client_node)
+      "Install yp-tools, ypbind, ypserv and rpcbind"
+            vi  /etc/sysconfig/network
+                  NISDOMAIN=zchpc
+            vi /etc/yp.conf 
+                  Domain name zchpc  
+                  Server  management
+      authconfig --enablenis --nisdomain=zchpc --nisserver=management --enablemkhomedir --update
+      systemctl start ypbind  
+      systemctl start  rpcbind
+      cd /usr/lib64/yp
+      ./ypinit –s management
+
+#TORQUE(Management_node)
+      yum install epel-release
+      yum -y install libtool openssl-devel libxml2-devel  boost-devel  gcc gcc-c++ git
+      git clone https://github.com/adaptivecomputing/torque.git -b 6.0.1 6.0.1
+      cd 6.0.1
+      ./autogen.sh
+      ./configure
+      make
+      make install
+      echo “management” > /var/spool/torque/server_name
+      echo "/usr/local/lib" > /etc/ld.so.conf.d/torque.conf
+      ldconfig
+            vi /var/spool/torque/server_priv/nodes
+                  compute1 np=1
+                  compute2 np=1
+      cp contrib/systemd/trqauthd.service   /usr/lib/systemd/system/
+      systemctl enable trqauthd.service
+      systemctl start trqauthd.service
+      ./torque.setup root
+      qterm
+      cp contrib/systemd/pbs_server.service   /usr/lib/systemd/system/
+      systemctl enable pbs_server.service
+      systemctl start pbs_server.service
+      cp contrib/systemd/ pbs_sched.service  /usr/lib/systemd/system/
+      systemctl enable pbs_sched.service
+      systemctl start pbs_sched.service
+      make packages
+
+#TORQUE(Client_node)
+      scp contrib/systemd/pbs_mom.service root@computeX:/usr/lib/systemd/system/
+      scp torque-package-mom-linux-x86_64.sh root@computeX:/opt
+      scp torque-package-clients-linux-x86_64.sh root@computeX:/opt
+      ./torque-package-mom-linux-x86_64.sh --install
+      ./torque-package-clients-linux-x86_64.sh --install
+      scp root@management:/etc/ld.so.conf.d/torque.conf / /etc/ld.so.conf.d/
+      ldconfig
+      echo “management” > /var/spool/torque/server_name
+      systemctl enable pbs_mom.service
+      systemctl start pbs_mom.service
+
+#TORQUE(All_nodes)
+      If you have web server installed, Disable the default behavior of creating a "private" /tmp directory for services, which breaks the qsub/qstat commands.
+            vi /usr/lib/systemd/system/httpd.service 
+                  PrivateTmp=false
+      sudo systemctl daemon-reload
+      sudo systemctl restart httpd
+      #From Management_node
+      pbsnodes -a
+      #From Management_node(don't run qsub command as root account should have passwordless ssh configured and the account should exist on all the nodes)
+      echo "date" | qsub
+      qstat
+
+#GANGLIA(Management_node)
+      yum install ganglia ganglia-gmetad ganglia-web ganglia-gmond
+            vi /etc/ganglia/gmetad.conf
+                  data_source  “my_cluster"    192.168.0.1
+
+#GANGLIA(Client_node)
+      yum install ganglia ganglia-gmond
+
+#GANGLIA(All_Nodes)
+            vi /etc/ganglia/gmond.conf
+                  cluster {
+                        name = “my_cluster"
+                        }
+                  udp_send_channel {
+                        #mcast_join = 239.2.11.71
+                        host = 192.168.0.1
+                        }
+                  udp_recv_channel {
+                        #mcast_join = 239.2.11.71
+                        #bind = 239.2.11.71
+                        }
+                  tcp_accept_channel {
+                        port = 8649
+                        }
+#GANGLIA(Management_node)
+      systemctl start httpd
+      systemctl enable httpd
+      systemctl start gmond
+      systemctl enable gmond
+      systemctl start gmetad
+      systemctl enable gmetad
+            vi /etc/httpd/conf.d/ganglia.conf
+                  "Comment all lines using # and uncomment last line = Require all granted"
+
+#GANGLIA(Client_node)
+      systemctl start gmond
+      systemctl enable gmond
+            "Access from the Webbrowser using http://192.168.0.1/ganglia"
+
+#MPI(Management_node)
+      wget http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz
+      yum install gcc gcc-c++ kernel-devel -y
+      tar xvf mpich-3.1.4.tar.gz
+      mkdir mpich2
+      cd mpich-3.1.4
+      ./configure --prefix=/home/mpich2 --disable-fortran
+      make
+      make install
+      ls
+      cd ../
+      ls
+      cd mpich2/
+      ls
+      cd bin/
+      ls
+      cd ../
+            vi ~/.bashrc
+                  export PATH=/home/mpich2/bin:$PATH
+                  export LD_LIBRARY_PATH=“home/mpich2/lib:$LD_LIBRARY_PATH”
+      source ~/.bashrc
+
+#MPI(Client_node)
+            vi ~/.bashrc
+                  export PATH=/mnt/home/mpich2/bin:$PATH
+                  export LD_LIBRARY_PATH=“mnt/home/mpich2/lib:$LD_LIBRARY_PATH”
+            source ~/.bashrc
+
+#All_nodes
+      mpirun
+
+#Choose_node
+      mkdir projects //in shared folder
+      cd projects
+            vi hosts
+                  192.168.0.1
+                  192.168.0.2
+                  192.168.0.3
+      mpirun –f hosts –n 4 echo “hello world”
+      "Create c program using vi and save"
+      "Compile your code as:""
+      mpicc -o objectOutputName c_CodeName.c
+      mpirun –np 4 ./objectOutputName
+
+#Scilab
+      mkdir /home/scilab
+      cd /nfsshare/scilab/
+      wget http://www.scilab.org/download/5.5.2/scilab-5.2.2.bin.linux-x86_64.tar.gz
+      tar xzvf scilab-5.2.2.bin.linux-x86_64.tar.gz
+      cd /scilab-5.2.2/
+      ./bin/scilab
+            vi ~/.bashrc
+                  export PATH=$PATH:/home/scilab/scilab-5.2.2/bin
+      source ~/.bashrc
+      scilab
+      mpirun -n 4 scilab-cli –f /path/to/the/scilabfile.sce

@@ -1,0 +1,26 @@
+		mkdir projects //in shared folder
+		cd projects
+		vi hosts
+	Add the following lines:
+			192.168.0.1
+			192.168.0.2
+			192.168.0.3
+	while in projects:
+		mpirun –f hosts –n 4 echo “hello world”
+	Create c program using vi and save
+	Compile your code as:
+		mpicc -o objectOutputName c_CodeName.c
+		mpirun –np 4 ./objectOutputName
+Install Scilab
+		mkdir /home/scilab
+		cd /nfsshare/scilab/
+		wget http://www.scilab.org/download/5.5.2/scilab-5.2.2.bin.linux-x86_64.tar.gz
+		tar xzvf scilab-5.2.2.bin.linux-x86_64.tar.gz
+		cd /scilab-5.2.2/
+		./bin/scilab
+		vi ~/.bashrc
+	Add the following 2-lines
+			export PATH=$PATH:/home/scilab/scilab-5.2.2/bin
+		source ~/.bashrc
+		scilab
+		mpirun -n 4 scilab-cli –f /path/to/the/scilabfile.sce

@@ -1,0 +1,54 @@
+CONFIGURING NIS SERVICE(Management_node)
+		yum -y install ypserv rpcbind cache cach nfs make ypbind portmap xinetd
+		rpm –qa ypserv
+	Open /etc/sysconfig/network file using:
+		vi /etc/sysconfig/network
+	Set hostname and NIS domain name as shown here and save file:
+		NETWORKING=yes
+		NETWORKING_IPV6=no
+		HOSTNAME=management
+		NISDOMAIN=zchpc
+	Open vi /var/yp/securenets and add IP addresses you allow access to NIS server
+		255.0.0.0             127.0.0.0 
+		255.255.255.0     192.168.0.0
+
+		systemctl start rpcbind ypserv ypxfrd yppasswdd
+		systemctl enable rpcbind ypserv ypxfrd yppasswdd
+	You can check whether ypserv starts or using the following command, there will be the following information if it starts successfully:
+		rpcinfo -u management ypserv
+			program 100004 version 1 ready and waiting
+			program 100004 version 2 ready and waiting
+	Update NIS database
+		/usr/lib64/yp/ypinit –m
+	At this point, we have to construct a list of the hosts which will run NIS. Continue to add the names for the other hosts, one per line. When you are done with thelist, type a <control D>.
+		next host to add: management
+		next host to add: compute1
+		next host to add: compute2
+		Ctrl + D key
+	The current list of NIS servers looks like this:
+			management 
+			compute1
+			compute2
+	Is this correct? [y/n: y] y
+		# y key and Enter
+	management has been set up as a NIS server.
+	If you add a user on the management server you should be able to see them on the client servers. To enable this run the make command in the /var/yp directory.
+		cd /var/yp
+		make
+
+Client configuration
+	Install the required packages  to configure clients and these are yp-tools ,ypbind , ypserv and rpcbind .
+	Edit the /etc/sysconfig file and add the domain name : 
+		vi  /etc/sysconfig/network
+			Add NISDOMAIN=zchpc
+			Edit vi /etc/yp.conf  file: 
+			Domain name  zchpc  
+			Server  management  （ip or name of server-side)
+		authconfig --enablenis --nisdomain=zchpc --nisserver=management --enablemkhomedir --update
+	Start and enable ypbind and rpcbind
+         systemctl start ypbind  
+         systemctl start  rpcbind
+		cd /usr/lib64/yp
+	Then run :
+		./ypinit –s management
+

@@ -1,0 +1,19 @@
+Install RSH
+		yum -y install rsh rsh-server
+	Restart the server daemons.
+		systemctl restart rsh.socket
+		systemctl restart rlogin.socket 
+		systemctl restart rexec.socket
+	To enable rsh to automatically start at system startup:
+		systemctl enable rsh.socket 
+		systemctl enable rlogin.socket
+		systemctl enable rexec.socket
+CONFIGURING  RSH SERVICE
+	Edit /etc/hosts，add ip address of all nodes and names of corresponding computers.
+	Note: do not edit the line containing 127.0.0.1, or, it will bring negative influence on the normal work of NIS.
+	Check if the computers are connected on network using ping.
+	Remote execution is controlled by two files which are /etc/rhosts.equiv  and /root/.rhosts edit the files by adding the hostnames of the machines on the network whose users are allowed access.
+ 	To enable external root user to execute  commands edit /etc/securetty: vi /etc/securetty
+	Add rsh
+        rexec
+        rlogin

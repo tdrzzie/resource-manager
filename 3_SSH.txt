@@ -1,0 +1,13 @@
+CONFIGURING SSH SERVICE
+	Check if ssh is installed using:
+		rpm –qa | grep openssh
+	Install OpenSSH Server Software Package
+		sudo yum –y install openssh-server openssh-clients openssh-libs
+		sudo systemctl start sshd
+		sudo systemctl status sshd
+		sudo systemctl enable sshd
+Setting up SSH passwordless login
+	Create an SSH key pair using the:
+		ssh-keygen
+		ssh-copy-id -i ~/.ssh/id_rsa.pub root@computex
+		ssh root@compute1

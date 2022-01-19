@@ -1,0 +1,25 @@
+Setting up HostName and IP-Address
+      To assign a hostname :
+            hostnamectl set-hostname compute1
+      To verify that the hostname  has been assigned  successfully:
+            hostname
+      It should display the hostname compute1
+      If you want to modify the name edit the /etc/hosts file and write the new hostname.
+            vi /etc/hosts
+Disable firewall and SELinux security settings:
+            systemctl stop firewalld
+            systemctl status firewalld
+            systemctl disable firewalld
+            vi /etc/sysconfig/selinux
+CONFIGURING IP ADDRESS
+      Assign  ip-address:
+            cd /etc/sysconfig/network-scripts
+      Edit ifcfg –ens33
+            vi ifcfg-ens33
+      change from dhcp to static
+            IPADDR=192.168.0.1/2/3
+            NETMASK=255.255.255.0
+      Restart the network service, for the system to pick-up the changes.
+            service network restart
+      Check the ip address using
+            ip a s

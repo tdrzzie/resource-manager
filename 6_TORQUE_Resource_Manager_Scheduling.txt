@@ -1,0 +1,77 @@
+TORQUE SETUP(Management_node)
+	Install TORQUE and its dependencies on the headnode:
+		yum install epel-release
+		yum -y install libtool openssl-devel libxml2-devel  boost-devel  gcc gcc-c++ git
+	Installation files can be obtained from git repository:
+		git clone https://github.com/adaptivecomputing/torque.git -b 6.0.1 6.0.1
+		cd 6.0.1
+	Configure, make and make install:
+		./autogen.sh
+		./configure
+		make
+		make install
+	Make sure Torque is using server hostname (mgt):
+		echo “mgt” > /var/spool/torque/server_name
+	Configure the library path
+		echo "/usr/local/lib" > /etc/ld.so.conf.d/torque.conf
+		ldconfig
+	Populate /var/spool/torque/server_priv/nodes
+	A basic example follows:
+      	node01 np=1
+      	node02 np=1
+   	(for these steps make sure you are in the torque install directory)
+   	Start the trqauthd daemon:
+		cp contrib/systemd/trqauthd.service   /usr/lib/systemd/system/
+		systemctl enable trqauthd.service
+		systemctl start trqauthd.service
+	Initialize torque serverdb:
+		./torque.setup root
+		qterm
+	Start pbs_server:
+		cp contrib/systemd/pbs_server.service   /usr/lib/systemd/system/
+		systemctl enable pbs_server.service
+		systemctl start pbs_server.service
+	Configure the scheduler 
+	On the mgt node, copy the scheduler service file to the correct location:
+		cp contrib/systemd/ pbs_sched.service  /usr/lib/systemd/system/
+	Enable and start the scheduler:
+		systemctl enable pbs_sched.service
+		systemctl start pbs_sched.service
+	Make Client (Compute Node) Packages
+	On the server, in the source directory, build packages for the nodes
+		make packages
+
+TORQUE SETUP(Client_node)
+	From mgt node Copy contrib/systemd/pbs_mom.service to /usr/lib/systemd/system/ on all compute nodes
+	Repeat the following  Steps for the compute nodes & make sure you are in the torque install directory
+		scp contrib/systemd/pbs_mom.service root@computeX:/usr/lib/systemd/system/
+	Install torque-package-mom-linux-x86_64.sh and torque-package-clients-linux-x86_64.sh to all compute nodes
+		scp torque-package-mom-linux-x86_64.sh root@computeX:/opt
+		scp torque-package-clients-linux-x86_64.sh root@computeX:/opt
+	Execute the Scripts on the computing nodes
+	for these steps make sure you are in the /opt directory
+		./torque-package-mom-linux-x86_64.sh --install
+		./torque-package-clients-linux-x86_64.sh --install
+	Configure the compute node library paths
+		scp root@mgt:/etc/ld.so.conf.d/torque.conf / /etc/ld.so.conf.d/
+		ldconfig
+	Make sure the nodes are using the management node hostname on the internal node network :
+		echo “mgt” > /var/spool/torque/server_name
+	Start the pbs_mom service:
+		systemctl enable pbs_mom.service
+		systemctl start pbs_mom.service
+
+TORQUE(All_nodes)
+	If you have web server installed, Disable the default behavior of creating a "private" /tmp directory for services, which breaks the qsub/qstat commands.
+		vi /usr/lib/systemd/system/httpd.service 
+			PrivateTmp=false
+	Restart the daemons:
+		sudo systemctl daemon-reload
+		sudo systemctl restart httpd
+	From Management_node
+		pbsnodes -a
+	From Management_node(don't run qsub command as root account should have passwordless ssh configured and the account should exist on all the nodes)
+		echo "date" | qsub
+	If successful, two files STDIN.oXX and STDIN.eXX should appear in your working directory. If not, you should receive mail with an error report.
+		qstat
+	This should display that the queue has a running job in it.
